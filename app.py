@@ -1,22 +1,35 @@
+# app.py
+
 from flask import Flask, request, jsonify
-from flask_cors import CORS
+import pandas as pd
+import joblib
 
 app = Flask(__name__)
-CORS(app)
 
-@app.route('/')
-def home():
-    return "Server is running!" 
+# 📦 Load trained model and artifacts
+cls_model = joblib.load('trained_data/model_cls.pkl')
+features = joblib.load('trained_data/model_features.pkl')
+result_encoder = joblib.load('trained_data/result_encoder.pkl')
 
-@app.route('/chat', methods=['POST'])
-def chat():
-    data = request.get_json()
-    user_input = data.get('message', '').lower()
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.json
 
-    if user_input == 'hi':  
-        return jsonify({'response': 'Hello, Kyla!'})  
-    else:
-        return jsonify({'response': "I don't understand."})  
-    
+    # ✅ Convert input into DataFrame
+    input_df = pd.DataFrame([data])
+
+    # 🧠 Ensure all expected features are present
+    input_df = input_df.reindex(columns=features, fill_value=0)
+
+    # 🤖 Predict pass/fail
+    cls_encoded = cls_model.predict(input_df)[0]
+    result = result_encoder.inverse_transform([cls_encoded])[0]
+
+    # 📨 Return result
+    response = {
+        "Prediction": result
+    }
+    return jsonify(response)
+
 if __name__ == '__main__':
     app.run(debug=True)
