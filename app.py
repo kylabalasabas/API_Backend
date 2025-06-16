@@ -1,35 +1,33 @@
-# app.py
-
 from flask import Flask, request, jsonify
-import pandas as pd
-import joblib
+from flask_cors import CORS
 
 app = Flask(__name__)
-
-# 📦 Load trained model and artifacts
-cls_model = joblib.load('trained_data/model_cls.pkl')
-features = joblib.load('trained_data/model_features.pkl')
-result_encoder = joblib.load('trained_data/result_encoder.pkl')
+CORS(app)
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    data = request.json
+    try:
+        data = request.get_json()
+        print("📨 Received data from frontend:", data)
 
-    # ✅ Convert input into DataFrame
-    input_df = pd.DataFrame([data])
+        # Example logic
+        hours = float(data.get('hours', 0))
+        attendance = float(data.get('attendance', 0))
+        sleep = float(data.get('sleep', 0))
+        previous = float(data.get('previous', 0))
 
-    # 🧠 Ensure all expected features are present
-    input_df = input_df.reindex(columns=features, fill_value=0)
+        if hours >= 10 and attendance >= 90 and sleep >= 7 and previous >= 85:
+            result = "Pass with Distinction"
+        elif hours >= 5 and attendance >= 75:
+            result = "Pass"
+        else:
+            result = "Fail"
 
-    # 🤖 Predict pass/fail
-    cls_encoded = cls_model.predict(input_df)[0]
-    result = result_encoder.inverse_transform([cls_encoded])[0]
-
-    # 📨 Return result
-    response = {
-        "Prediction": result
-    }
-    return jsonify(response)
+        print("✅ Prediction result:", result)
+        return jsonify({'prediction': result})
+    except Exception as e:
+        print("❌ Error in backend:", str(e))
+        return jsonify({'error': 'Prediction error.'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
